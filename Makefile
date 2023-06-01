@@ -1,7 +1,7 @@
 SOURCES=$(wildcard *.c)
 HEADERS=$(SOURCES:.c=.h)
-#FLAGS=-DDEBUG -g
-FLAGS=-g
+FLAGS=-DDEBUG -g
+#FLAGS=-g
 
 all: main tags
 
@@ -17,4 +17,4 @@ tags: ${SOURCES} ${HEADERS}
 	ctags -R .
 
 run: main Makefile tags
-	mpirun -hostfile hosts -oversubscribe -np 8 ./main
+	mpirun -hostfile hosts -oversubscribe -np 4 ./main

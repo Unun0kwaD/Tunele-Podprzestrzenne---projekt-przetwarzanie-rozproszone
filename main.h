@@ -15,7 +15,7 @@
 #define SEC_IN_STATE 1
 #define STATE_CHANGE_PROB 10
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define ROOT 0
 
@@ -25,7 +25,9 @@ extern int size;
 extern int ackCount;
 extern pthread_t threadKom;
 extern int lamp_clock;
-
+extern int waitingSize;
+extern int *waiting;
+extern queue_t podprzestrzen;
 
 
 

@@ -10,6 +10,7 @@ void mainLoop()
 	int rozmiar;
     while (stan != InFinish) {
 	switch (stan) {
+
 	    case InRun: 
 		perc = random()%100;
 		if ( perc < 25 ) {
@@ -41,26 +42,44 @@ void mainLoop()
 		} // a skoro już jesteśmy przy komendach vi, najedź kursorem na } i wciśnij %  (niestety głupieje przy komentarzach :( )
 		debug("Skończyłem myśleć");
 		break;
+
+
 	    case InWant:
 		println("Czekam na wejście do sekcji krytycznej")
 		// tutaj zapewne jakiś muteks albo zmienna warunkowa
 		// bo aktywne czekanie jest BUE
-		if ( ackCount == size - 1) //sprawdź także czy się miesci w tunelu oraz dla kuriera czy tunel jest pusty lub ma samych kurierów
+		if ( ackCount == size - 1)// && !isFull(&podprzestrzen) && (traveler==check_type(&podprzestrzen) || check_type(&podprzestrzen)==EMPTY) ) //sprawdź także czy się miesci w tunelu oraz dla kuriera czy tunel jest pusty lub ma samych kurierów
 		    changeState(InSection);
 		
 		break;
+
+
 	    case InSection:
 		// tutaj zapewne jakiś muteks albo zmienna warunkowa
 
-		//odeślij ACK do wszytkich listy kórym nie wysłaliśmy wcześniej
-		println("Jestem w sekcji krytycznej")
+		// 1. odeślij ACK do wszytkich listy kórym nie wysłaliśmy wcześniej
+		// sendPacket( 0, status.MPI_SOURCE, ACK );
+		for (int i=0; i<waitingSize; i++) {
+			sendPacket(0, waiting[i], ACK );
+			waitingSize=0;
+		}
+		
+		
+		// 2. dodajemy proces do lokalnej kolejki procesów w tunelu
+		enqueue(rank,traveler,rozmiar,&podprzestrzen);
+		println("Jestem w sekcji krytycznej");
 		    sleep(5);
-		//Jeżeli w lokalnej podprzestrzeni jestem pierwszy na wyjściu to wychodzę
-		//if ( perc < 25 ) {
-		    debug("Perc: %d", perc);
-		    println("Wychodzę z sekcji krytyczneh")
-			//send RELEASE z informacją na temat tego ile rozmiaru zwalnia
-		    debug("Zmieniam stan na wysyłanie");
+		println("obecnie w tunelu jest %d osób", podprzestrzen.perons_inside)
+		println("na początku tunelu jest %d", check_first(&podprzestrzen))
+		//Jeżeli w lokalnej kolejce procesów w tunelu jestem pierwszy na wyjściu to wychodzę
+		if(check_first(&podprzestrzen)==rank){
+			println("Mogę wyjść");
+			dequeue(&podprzestrzen);
+		    println("Wychodzę z sekcji krytyczneh");
+
+			// wysyłamy LEFT i usuwamy proces z kolejki procesów w tunelu
+			//send RELEASE z informacją na temat tego ile rozmiaru zwalnia i jaki typ podrózników
+			debug("Zmieniam stan na wysyłanie");
 		    packet_t *pkt = malloc(sizeof(packet_t));
 		    pkt->typ_grupy=traveler;
 			pkt->rozmiar_grupy=rozmiar;
@@ -69,7 +88,7 @@ void mainLoop()
 			    sendPacket( pkt, (rank+1)%size, RELEASE);
 		    changeState( InRun );
 		    free(pkt);
-		//}
+		}
 		break;
 	    default: 
 		break;
