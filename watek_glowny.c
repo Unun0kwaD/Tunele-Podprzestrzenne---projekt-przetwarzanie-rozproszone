@@ -55,13 +55,15 @@ void mainLoop()
 		//odeślij ACK do wszytkich listy kórym nie wysłaliśmy wcześniej
 		println("Jestem w sekcji krytycznej")
 		    sleep(5);
+		//Jeżeli w lokalnej podprzestrzeni jestem pierwszy na wyjściu to wychodzę
 		//if ( perc < 25 ) {
 		    debug("Perc: %d", perc);
 		    println("Wychodzę z sekcji krytyczneh")
 			//send RELEASE z informacją na temat tego ile rozmiaru zwalnia
 		    debug("Zmieniam stan na wysyłanie");
 		    packet_t *pkt = malloc(sizeof(packet_t));
-		    pkt->data = perc;
+		    pkt->typ_grupy=traveler;
+			pkt->rozmiar_grupy=rozmiar;
 		    for (int i=0;i<=size-1;i++)
 			if (i!=rank)
 			    sendPacket( pkt, (rank+1)%size, RELEASE);
