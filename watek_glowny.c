@@ -50,6 +50,7 @@ void mainLoop()
 		// bo aktywne czekanie jest BUE
 		if ( ackCount == size - 1)// && !isFull(&podprzestrzen) && (traveler==check_type(&podprzestrzen) || check_type(&podprzestrzen)==EMPTY) ) //sprawdź także czy się miesci w tunelu oraz dla kuriera czy tunel jest pusty lub ma samych kurierów
 		    changeState(InSection);
+			println("Wchodzę do sekcji krytycznej");
 		
 		break;
 
@@ -66,26 +67,45 @@ void mainLoop()
 		
 		
 		// 2. dodajemy proces do lokalnej kolejki procesów w tunelu
-		enqueue(rank,traveler,rozmiar,&podprzestrzen);
+		pthread_mutex_lock(&lampMut);
+		println("Dodaję się do kolejki procesów w tunelu");
+		enqueue(rank,traveler,rozmiar,lamp_clock ,&podprzestrzen);
+		pthread_mutex_unlock(&lampMut);
+
+		packet_t *pkt = malloc(sizeof(packet_t));
+		pkt->typ_grupy=traveler;
+		pkt->rozmiar_grupy=rozmiar;
+		println("Wysyłam INSECTION do wszystkich");
+		for (int i=0;i<=size-1;i++){
+			if (i!=rank) {
+				sendPacket( pkt, i, INSECTION );
+			}
+		}
+		println("Zwalniam pakiet");
+		free(pkt);
+
 		println("Jestem w sekcji krytycznej");
+		   	display(&podprzestrzen);
 		    sleep(5);
 		println("obecnie w tunelu jest %d osób", podprzestrzen.perons_inside)
 		println("na początku tunelu jest %d", check_first(&podprzestrzen))
 		//Jeżeli w lokalnej kolejce procesów w tunelu jestem pierwszy na wyjściu to wychodzę
-		if(check_first(&podprzestrzen)==rank){
+		if(1){//check_first(&podprzestrzen)==rank){
 			println("Mogę wyjść");
 			dequeue(&podprzestrzen);
 		    println("Wychodzę z sekcji krytyczneh");
-
+			
 			// wysyłamy LEFT i usuwamy proces z kolejki procesów w tunelu
 			//send RELEASE z informacją na temat tego ile rozmiaru zwalnia i jaki typ podrózników
 			debug("Zmieniam stan na wysyłanie");
 		    packet_t *pkt = malloc(sizeof(packet_t));
 		    pkt->typ_grupy=traveler;
 			pkt->rozmiar_grupy=rozmiar;
-		    for (int i=0;i<=size-1;i++)
-			if (i!=rank)
-			    sendPacket( pkt, (rank+1)%size, RELEASE);
+			ackCount = 0;
+		    for (int i=0;i<=size-1;i++){
+				if (i!=rank)
+			    	sendPacket( pkt, i, RELEASE);
+			}
 		    changeState( InRun );
 		    free(pkt);
 		}

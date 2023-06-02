@@ -59,6 +59,7 @@ void inicjuj_typ_pakietu()
 /* opis patrz util.h */
 void sendPacket(packet_t *pkt, int destination, int tag)
 {
+    println("Jestem w send packet INSECTION");
     int freepkt = 0;
     if (pkt == 0)
     {
@@ -66,10 +67,18 @@ void sendPacket(packet_t *pkt, int destination, int tag)
         freepkt = 1;
     }
     pkt->src = rank;
+    println("przed mutexem");
     pthread_mutex_lock(&lampMut);
     pkt->ts = ++lamp_clock;
     pthread_mutex_unlock(&lampMut);
-    MPI_Send(pkt, 1, MPI_PAKIET_T, destination, tag, MPI_COMM_WORLD);
+    println("po mutexie");
+    int check = MPI_Send(pkt, 1, MPI_PAKIET_T, destination, tag, MPI_COMM_WORLD);
+    if (check != MPI_SUCCESS)
+    {
+        println("Błąd w MPI_Send! %d", check);
+        MPI_Finalize();
+        exit(-1);
+    }
     debug("Wysyłam %s do %d\n", tag2string(tag), destination);
     if (freepkt)
         free(pkt);
@@ -102,11 +111,12 @@ int isEmpty(queue_t *q)
 }
 
 //zwraca -1 jeżeli kolejka jest pełna
-int enqueue(int id, int typ, int size, queue_t *q)
+int enqueue(int id, int typ, int size,int ts, queue_t *q)
 {
     pthread_mutex_lock(&queueMut);
     if (isFull(q))
     {
+        pthread_mutex_unlock(&queueMut);
         return -1;
         debug("Kolejka jest pełna");
     }
@@ -121,6 +131,7 @@ int enqueue(int id, int typ, int size, queue_t *q)
         q->ids[q->rear] = id;
         q->types[q->rear] = typ;
         q->sizes[q->rear] = size;
+        q->ts[q->rear] = ts;
         q->perons_inside += size;
         //debug("W kolejce jest %d osób", q->perons_inside);
     }
@@ -131,19 +142,54 @@ int enqueue(int id, int typ, int size, queue_t *q)
 //zwraca -1 jeżeli kolejka jest pusta
 int dequeue(queue_t *q)
 {
-    pthread_mutex_lock(&queueMut);
     int item;
+    pthread_mutex_lock(&queueMut);
     if (isEmpty(q))
     {
+        println("Kolejka jest pusta");
         pthread_mutex_unlock(&queueMut);
         return -1;
     }
     else
     {
-        item = q->ids[q->front];
-        q->perons_inside -= q->sizes[q->front];
+        /*
+        //delete item with minimal ts from queue, then recover queue
+        int min = q->ts[q->front];
+        int min_index = q->front;
+        for (int i = q->front; i != q->rear; i = (i + 1) % q->size)
+        {
+            if (q->ts[i] < min)
+            {
+                min = q->ts[i];
+                min_index = i;
+            }
+        }
+        int item = q->ids[min_index];
+        q->perons_inside -= q->sizes[min_index];
+        //debug("Usuwam %d z kolejki", item);
+        for (int i = min_index; i != q->rear; i = (i + 1) % q->size)
+        {
+            q->ids[i] = q->ids[(i + 1) % q->size];
+            q->types[i] = q->types[(i + 1) % q->size];
+            q->sizes[i] = q->sizes[(i + 1) % q->size];
+            q->ts[i] = q->ts[(i + 1) % q->size];
+        }
+        q->rear = (q->rear - 1) % q->size;
         if (q->front == q->rear)
         {
+            //debug("Usuwam ostatni element z kolejki");
+            q->front = -1;
+            q->rear = -1;
+        }
+
+        */
+        
+        item = q->ids[q->front];
+        q->perons_inside -= q->sizes[q->front];
+        println("Usuwam %d z kolejki", item);
+        if (q->front == q->rear)
+        {
+            println("Usuwam ostatni element z kolejki");
             q->front = -1;
             q->rear = -1;
         }
@@ -152,6 +198,8 @@ int dequeue(queue_t *q)
             q->front = (q->front + 1) % size;
         }
     }
+    
+    
     pthread_mutex_unlock(&queueMut);
     return item;
 }
@@ -161,10 +209,11 @@ int check_first(queue_t *q)
     pthread_mutex_lock(&queueMut);
     if (q->front == -1)
     {
+    pthread_mutex_unlock(&queueMut);
         return -1;
     }
-    return q->ids[q->front];
     pthread_mutex_unlock(&queueMut);
+    return q->ids[q->front];
 }
 
 //funkcja zwraca KURIER jeżeli może wejść kurier
@@ -175,6 +224,7 @@ int check_type(queue_t *q)
     pthread_mutex_lock(&queueMut);
     if (isEmpty(q))
     {
+        pthread_mutex_unlock(&queueMut);
         return EMPTY;
     }
     else
@@ -188,8 +238,8 @@ int check_type(queue_t *q)
             }
         }
     }
-    return KURIER;
     pthread_mutex_unlock(&queueMut);
+    return KURIER;
 }
 
 void display(queue_t *q)
@@ -205,9 +255,9 @@ void display(queue_t *q)
         printf("\nKolejka zawiera: \n");
         for (i = q->front; i != q->rear; i = (i + 1) % q->size)
         {
-            printf("%d %d %d\n", q->ids[i], q->types[i], q->sizes[i]);
+            printf("%d %d %d %d\n", q->ids[i], q->types[i], q->sizes[i], q->ts[i]);
         }
-        printf("%d %d %d\n", q->ids[i], q->types[i], q->sizes[i]);
+        printf("%d %d %d %d\n", q->ids[i], q->types[i], q->sizes[i], q->ts[i]);
     }
     pthread_mutex_unlock(&queueMut);
 }
@@ -218,10 +268,12 @@ int check_size(queue_t *q)
     if (isEmpty(q))
     {
         q->perons_inside = 0;
+    pthread_mutex_unlock(&queueMut);
         return 0;
     }
     else
     {
+    pthread_mutex_unlock(&queueMut);
         return q->perons_inside;
     }
     pthread_mutex_unlock(&queueMut);

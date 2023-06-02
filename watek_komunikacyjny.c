@@ -29,10 +29,7 @@ void *startKomWatek(void *ptr)
                 pthread_mutex_unlock(&lampMut);
                 debug("Ktoś coś prosi. A niech ma!")
 		        sendPacket( 0, status.MPI_SOURCE, ACK );
-                // dodaj proces do lokalnej kolejki procesów w tunelu
-                int t=enqueue(pakiet.src, pakiet.typ_grupy, pakiet.rozmiar_grupy, &podprzestrzen);
-                debug("Dodaję proces %d do kolejki procesów w tunelu, t=%d", pakiet.src,t);
-            }
+                 }
             else {
                 //zapamiętaj komu nie odpowiedzieliśmy ACK --> dodaj do kolejki proc. oczekujacych
                 //if (waiting->length)
@@ -56,6 +53,17 @@ void *startKomWatek(void *ptr)
             debug("Dostałem RELEASE od %d", status.MPI_SOURCE);
             //usun proces z lokalnej kolejki procesów w tunelu
             dequeue(&podprzestrzen);
+        break;
+        
+
+        case INSECTION:
+            debug("Dostałem INSECTION od %d", status.MPI_SOURCE);
+            //usun proces z lokalnej kolejki procesów w tunelu
+            // dodaj proces do lokalnej kolejki procesów w tunelu
+            int t=enqueue(pakiet.src, pakiet.typ_grupy, pakiet.rozmiar_grupy,pakiet.ts, &podprzestrzen);
+            debug("Dodaję proces %d do kolejki procesów w tunelu, t=%d", pakiet.src,t);
+
+        break;
             
 	    default:
 	    break;

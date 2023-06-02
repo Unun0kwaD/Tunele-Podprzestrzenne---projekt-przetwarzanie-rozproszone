@@ -19,6 +19,9 @@ typedef struct {
     int *ids;
     int *types;
     int *sizes;
+    int *ts;
+    int *rank;
+
 } queue_t;
 
 /* packet_t ma trzy pola, więc NITEMS=3. Wykorzystane w inicjuj_typ_pakietu */
@@ -31,6 +34,7 @@ typedef struct {
 #define RELEASE 3
 #define APP_PKT 4
 #define FINISH  5
+#define INSECTION 6
 
 #define KURIER 999
 #define WYCIECZKA 777
@@ -64,7 +68,7 @@ extern pthread_mutex_t waitingMut;
 
 int isFull(queue_t *q);
 int isEmpty(queue_t *q);
-int enqueue(int id,int typ,int size, queue_t *q);
+int enqueue(int id,int typ,int size,int ts, queue_t *q);
 int dequeue(queue_t *q);
 int check_first(queue_t *q);
 int check_type(queue_t *q);

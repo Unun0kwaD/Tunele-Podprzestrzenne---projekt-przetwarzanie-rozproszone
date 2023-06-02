@@ -76,6 +76,7 @@ int main(int argc, char **argv)
     podprzestrzen.ids = malloc(sizeof(int) * P);
     podprzestrzen.types = malloc(sizeof(int) * P);
     podprzestrzen.sizes = malloc(sizeof(int) * size);
+    podprzestrzen.ts = malloc(sizeof(int) * P);
 
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     check_thread_support(provided);
